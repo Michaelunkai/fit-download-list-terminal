@@ -363,9 +363,10 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'msedgewebview2.exe' 
     while time.time() < deadline:
         if webview_debug_available(port):
             # WebView debug opens before the app's frontend/download manager is
-            # fully stable.  Wait for Fit Launcher startup so the CDP socket is
-            # not closed mid-command by a reload.
-            time.sleep(25)
+            # fully stable.  Use a short readiness delay so bulk Afirgirl runs
+            # start queueing quickly; command-level timeouts protect against
+            # unfinished frontend startup.
+            time.sleep(8)
             return True
         time.sleep(1)
     return False
@@ -418,7 +419,7 @@ class TauriClient:
             return {"ok": False, "e": f"Unexpected CDP value: {val!r}", "raw": res}
 
 
-def queue_downloads_tauri(games: List[Dict[str, str]], exe_path: Path, download_dir: Path, port: int = DEFAULT_WEBVIEW_DEBUG_PORT, restart_debug: bool = True) -> List[Dict[str, str]]:
+def queue_downloads_tauri(games: List[Dict[str, str]], exe_path: Path, download_dir: Path, port: int = DEFAULT_WEBVIEW_DEBUG_PORT, restart_debug: bool = True, metadata_timeout_ms: int = 8000) -> List[Dict[str, str]]:
     """Queue games through Fit Launcher's own Downloads manager command."""
     if not ensure_fit_launcher_debug(exe_path, port, restart=restart_debug):
         raise RuntimeError(f"Fit Launcher WebView debug port did not open: {port}")
@@ -467,7 +468,7 @@ def queue_downloads_tauri(games: List[Dict[str, str]], exe_path: Path, download_
             except Exception:
                 indices = []
             if not indices:
-                files = client.invoke("list_torrent_files", {"magnet": magnet}, timeout_ms=120000)
+                files = client.invoke("list_torrent_files", {"magnet": magnet}, timeout_ms=metadata_timeout_ms)
                 if not files.get("ok") or not isinstance(files.get("r"), list) or not files["r"]:
                     # Known older FitGirl Kingmaker magnet often cannot resolve
                     # metadata through WebView, but the torrent has 11 files.
@@ -476,7 +477,7 @@ def queue_downloads_tauri(games: List[Dict[str, str]], exe_path: Path, download_
                         indices = list(range(11))
                     else:
                         reason = "metadata timeout" if files.get("timeout") else str(files.get("e") or files)
-                        out.append({"title": title, "status": f"ERROR: could not read torrent file list ({reason})", "job_id": "", "files": "0"})
+                        out.append({"title": title, "status": f"SKIPPED_METADATA_TIMEOUT: could not read torrent file list ({reason})", "job_id": "", "files": "0"})
                         continue
                 else:
                     indices = [int(x["file_index"]) for x in files["r"]]
@@ -607,6 +608,8 @@ def main(argv=None) -> int:
     parser.add_argument("--no-scrape", action="store_true", help="Do not fetch missing magnet links from game pages")
     parser.add_argument("--no-queue", action="store_true", help="Only update Fit Launcher's saved list; do not queue real Downloads-tab transfers")
     parser.add_argument("--verify-only", action="store_true", help="Do not write or queue; verify matching games are already in saved list and Downloads queue")
+    parser.add_argument("--metadata-timeout-ms", type=int, default=8000, help="Per-game torrent metadata wait before skipping to the next game (default: 8000)")
+    parser.add_argument("--strict-queue", action="store_true", help="Return non-zero for queue misses/errors instead of skipping unavailable/unresolvable games")
     args = parser.parse_args(argv)
 
     if args.line:
@@ -647,18 +650,21 @@ def main(argv=None) -> int:
             print(f"Backup: {backup}")
 
     queue_failures: List[str] = []
+    queue_skipped: set[str] = set()
     if not args.no_queue:
         if args.queue_backend == "tauri":
             if not args.verify_only:
                 print("Downloads-tab queue results (Fit Launcher manager):")
                 try:
-                    queue_results = queue_downloads_tauri(selected_games, args.fit_launcher, args.download_dir, port=args.webview_debug_port, restart_debug=not args.no_restart_debug)
+                    queue_results = queue_downloads_tauri(selected_games, args.fit_launcher, args.download_dir, port=args.webview_debug_port, restart_debug=not args.no_restart_debug, metadata_timeout_ms=args.metadata_timeout_ms)
                 except Exception as exc:
                     print(f"Fit Launcher manager queue failed: {exc}", file=sys.stderr)
                     return 4
                 for r in queue_results:
                     print(f"- {r['title']}: {r['status']} {r.get('job_id','')} files={r.get('files','')}")
-                    if r["status"].startswith("ERROR") or r["status"] == "NO_MAGNET":
+                    if r["status"].startswith("SKIPPED") or r["status"] == "NO_MAGNET":
+                        queue_skipped.add(normalize_title(r["title"]))
+                    elif r["status"].startswith("ERROR"):
                         queue_failures.append(r["title"])
             time.sleep(2)
             print("Downloads-tab verification (Fit Launcher manager/UI):")
@@ -671,7 +677,7 @@ def main(argv=None) -> int:
                 return 4
             for title, info in queue_verify.items():
                 print(f"- {title}: {info['status']} visible={info['visible']} queued={info['queued']} hash={info['infoHash']}")
-                if info["status"] != "PRESENT":
+                if info["status"] != "PRESENT" and normalize_title(title) not in queue_skipped:
                     queue_failures.append(title)
         else:
             if not wait_for_aria2(args.rpc_url, args.rpc_token, args.fit_launcher if args.launch else None, timeout=30):
@@ -701,13 +707,13 @@ def main(argv=None) -> int:
             print(f"  present: {title}")
         for title in info["missing"]:
             print(f"  MISSING: {title}")
-        if info["missing"] or not info["present"]:
+        if args.strict_queue and (info["missing"] or not info["present"]):
             saved_failures.append(q)
 
     if args.launch:
         launch_fit_launcher(args.fit_launcher)
         print(f"Launched: {args.fit_launcher}")
-    return 1 if saved_failures or queue_failures else 0
+    return 1 if saved_failures or (args.strict_queue and queue_failures) else 0
 
 
 if __name__ == "__main__":

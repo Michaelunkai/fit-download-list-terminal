@@ -1,0 +1,33 @@
+Verification run summary (2026-05-26)
+
+Terminal input used:
+"pathfinder" "Hell is Us" "until then" "goodnight universe" "keeper" "Legacy of Kain"
+
+Fit Launcher target:
+F:\backup\windowsapps\installed\Fit Launcher\Fit Launcher.exe
+
+Download-list JSON updated:
+C:\Users\micha\AppData\Roaming\com.fitlauncher.carrotrub\library\collections\games_to_download.json
+
+Confirmed present in download list:
+- pathfinder: 3 titles
+  - Pathfinder Kingmaker
+  - Pathfinder Gallowspire Survivors
+  - Pathfinder Wrath Of The Righteous
+- Hell is Us: 1 title
+  - Hell is Us: Deluxe Edition v1.6.47.48410 + 6 DLCs/Bonuses
+- until then: 1 title
+  - Until Then – v1.2
+- goodnight universe: 1 title
+  - Goodnight Universe
+- keeper: 1 title
+  - Keeper
+- Legacy of Kain: 3 titles
+  - Legacy of Kain: Ascendance v1.0.5.2
+  - Legacy Of Kain Defiance Remastered
+  - Legacy Of Kain Soul Reaver 1 2 Remastered
+
+Script exit status: 0 on update and verification.
+Backups created by the live app update and intentionally left next to the live production JSON for rollback:
+- games_to_download.backup-20260526-192632.json
+- games_to_download.backup-20260526-192651.json

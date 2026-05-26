@@ -110,11 +110,12 @@ Requested maximum-speed targets:
 - Remove speed caps.
 - Avoid artificial throttling.
 - Keep downloads active while there are queued items.
+- When one of the five active downloads stops, finishes, or reaches 100%, aria2 should automatically promote another waiting transfer so the active target returns to five where enough queued transfers remain.
 - Rehydrate or activate Fit Launcher manager jobs into aria2 when needed.
 
 Configured policy targets that must be enforced:
 
-- Concurrent downloads: `256`
+- Concurrent downloads: `5` (keep exactly five active download slots whenever at least five queueable unfinished transfers exist)
 - Max connections per server: `16`
 - Split: `16`
 - Max peers: `1000`
@@ -162,6 +163,7 @@ Every game that reaches 100% download completion must immediately start automati
 Required auto-install behavior:
 
 - `auto_install=true` must be enforced.
+- Target automatic installation concurrency is `4` via persisted install-concurrency markers and the running auto-install bridge where Fit Launcher supports it.
 - The PathBridge daemon must be running.
 - The bridge must be checked before and after queue work.
 - Completed downloads must be handed off automatically to the installer path bridge.
@@ -382,6 +384,7 @@ The project/function satisfies the request when all locally controllable require
 - PathBridge is running for automatic install handoff.
 - The terminal returns to the prompt.
 - The repo contains the updated scripts and this requirement document.
+- The live bridge prevents concurrent JSON writes from corrupting Fit Launcher config while the daemon and one-shot repair run together.
 - The repo is committed and pushed.
 
 ## Practical limits that must be stated honestly

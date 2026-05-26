@@ -663,6 +663,8 @@ def main(argv=None) -> int:
             time.sleep(2)
             print("Downloads-tab verification (Fit Launcher manager/UI):")
             try:
+                if args.verify_only and not webview_debug_available(args.webview_debug_port):
+                    ensure_fit_launcher_debug(args.fit_launcher, args.webview_debug_port, restart=not args.no_restart_debug)
                 queue_verify = verify_download_queue_tauri(selected_games, port=args.webview_debug_port)
             except Exception as exc:
                 print(f"Fit Launcher manager verification failed: {exc}", file=sys.stderr)

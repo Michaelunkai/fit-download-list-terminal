@@ -62,15 +62,15 @@ Then type one line, for example:
 ```
 
 
-### Permanent PowerShell 5 command: Afirgirl
+### Permanent PowerShell 5 command: afitgirl / Afirgirl
 
 The repository includes `Afirgirl.ps1`, installed into the Windows PowerShell 5 profile as:
 
 ```powershell
-Afirgirl "pathfinder" "Hell is Us" "keeper"
+afitgirl "pathfinder" "Hell is Us" "keeper"
 ```
 
-PowerShell passes each quoted title safely as one argument, so names with spaces work. The function calls `tools\fit_download_list.py`, opens Fit Launcher with WebView2 debugging when needed, adds queueable matches through the real Fit Launcher Downloads manager, saves state with `dm_save_now`, and verifies the Downloads tab. Existing visible downloads are detected and skipped instead of restarted or deleted.
+PowerShell passes each quoted title safely as one argument, so names with spaces work. The function calls `tools\fit_download_list.py`, opens Fit Launcher with WebView2 debugging when needed, adds queueable matches through the real Fit Launcher Downloads manager, saves state with `dm_save_now`, and verifies the Downloads tab. Existing visible downloads are detected and skipped instead of restarted or deleted. Before and after every run, `afitgirl` also starts/checks the Fit Launcher Path Bridge daemon, removes aria2 speed caps, sets aggressive aria2 connection/peer settings, unpauses stalled transfers, and keeps Fit Launcher's `auto_install` setting enabled so a completed download is handed to the installer immediately.
 
 Notes:
 
@@ -78,6 +78,14 @@ Notes:
 - `i am the beast` is typo-corrected to `I Am Your Beast`.
 - `forever ago` is not currently present in the local Fit Launcher/FitGirl search catalog, so it is reported as no catalog match.
 - The old `Pathfinder Kingmaker` FitGirl entry exposes a legacy magnet that Fit Launcher WebView cannot resolve reliably; the script keeps it in the saved list and continues queueing the other Pathfinder entries instead of blocking the whole run.
+
+### Saved-list-only mode
+
+Use this only when you want to add names to the saved list without touching the real downloader:
+
+```powershell
+afitgirl -SavedOnly "keeper"
+```
 
 ### One command
 
